@@ -1,0 +1,66 @@
+name: Update registry index
+ 
+# Rebuilds registry/_index.json whenever the registry contents (or the
+# index-building script itself) change on main. HatsRegistry.load() reads
+# this file preferentially, via raw.githubusercontent.com, so that clients
+# don't compete for GitHub's low unauthenticated REST API rate limit just
+# to discover what's in the registry.
+#
+# This also acts as the registry's CI validation: build_index.py loads the
+# full registry tree with validation enabled (filename/catalog_id
+# agreement, dangling `extends` references) before writing anything, so a
+# structurally invalid registry entry fails this workflow rather than
+# silently landing on main.
+ 
+on:
+  push:
+    branches: [main]
+    paths:
+      - "registry/**"
+      - "scripts/build_index.py"
+      - "src/hats_registry/registry.py"
+  workflow_dispatch:
+ 
+# Allow this workflow to push its own commit back to main.
+permissions:
+  contents: write
+ 
+concurrency:
+  group: update-registry-index
+  cancel-in-progress: false
+ 
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need a token with push access for the commit step below;
+          # the default GITHUB_TOKEN is sufficient given `contents: write`.
+          fetch-depth: 0
+ 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+ 
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+ 
+      - name: Validate registry and build index
+        run: python scripts/build_index.py registry
+ 
+      - name: Commit updated index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- registry/_index.json; then
+            echo "No index changes to commit."
+            exit 0
+          fi
+          git add registry/_index.json
+          git commit -m "Update registry index [skip ci]"
+          git push
+ 

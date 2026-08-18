@@ -1,0 +1,36 @@
+name: Validate registry PR
+ 
+# Validates registry/** on every pull request, without writing anything.
+# Catches the same issues update-registry-index.yml would catch on main —
+# filename/catalog_id mismatches, extensions whose `extends` doesn't
+# resolve to an existing core, malformed entries — but at PR time, so a
+# contributor gets a red X and a clear error message before merge instead
+# of only finding out after landing on main.
+ 
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "registry/**"
+      - "scripts/build_index.py"
+      - "src/hats_registry/registry.py"
+ 
+jobs:
+  validate-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+ 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+ 
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+ 
+      - name: Validate registry entries
+        run: python scripts/build_index.py registry --check
+ 
