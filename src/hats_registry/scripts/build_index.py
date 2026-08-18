@@ -33,11 +33,7 @@ from pathlib import Path
 # Allow running directly from a checkout without installing the package.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from hats_registry.registry import (  # noqa: E402
-    HatsRegistry,
-    INDEX_FILENAME,
-    RegistryValidationError,
-)
+from hats_registry.registry import INDEX_FILENAME, HatsRegistry, RegistryValidationError  # noqa: E402
 
 
 def build_index(registry_root: Path) -> dict[str, list[str]]:
@@ -49,14 +45,8 @@ def build_index(registry_root: Path) -> dict[str, list[str]]:
     """
     HatsRegistry.from_directory(registry_root, validate=True)
 
-    core_paths = sorted(
-        str(p.relative_to(registry_root))
-        for p in registry_root.glob("*/core.json")
-    )
-    ext_paths = sorted(
-        str(p.relative_to(registry_root))
-        for p in registry_root.glob("*/extensions/*.json")
-    )
+    core_paths = sorted(str(p.relative_to(registry_root)) for p in registry_root.glob("*/core.json"))
+    ext_paths = sorted(str(p.relative_to(registry_root)) for p in registry_root.glob("*/extensions/*.json"))
     return {"cores": core_paths, "extensions": ext_paths}
 
 
@@ -72,9 +62,7 @@ def main() -> None:
         print(f"Registry validation failed: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    summary = (
-        f"{len(index['cores'])} core, {len(index['extensions'])} extension entries"
-    )
+    summary = f"{len(index['cores'])} core, {len(index['extensions'])} extension entries"
 
     if check_only:
         print(f"Registry OK ({summary}).")

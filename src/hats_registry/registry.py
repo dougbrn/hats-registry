@@ -33,9 +33,7 @@ DEFAULT_REGISTRY_SUBDIR = "registry"
 INDEX_FILENAME = "_index.json"
 
 _CORE_PATH_RE = re.compile(r"^(?:.+/)?(?P<core_id>[^/]+)/core\.json$")
-_EXTENSION_PATH_RE = re.compile(
-    r"^(?:.+/)?(?P<core_id>[^/]+)/extensions/(?P<ext_id>[^/]+)\.json$"
-)
+_EXTENSION_PATH_RE = re.compile(r"^(?:.+/)?(?P<core_id>[^/]+)/extensions/(?P<ext_id>[^/]+)\.json$")
 
 
 class CatalogEntryBase(BaseModel):
@@ -94,9 +92,7 @@ class HatsRegistry:
         self._extensions_by_core = extensions
         # Flat index for direct extension_id -> entry lookup.
         self._extensions_by_id: dict[str, ExtensionCatalogEntry] = {
-            entry.catalog_id: entry
-            for entries in extensions.values()
-            for entry in entries
+            entry.catalog_id: entry for entries in extensions.values() for entry in entries
         }
 
     @classmethod
@@ -120,8 +116,7 @@ class HatsRegistry:
             rather than stop at the first one).
         """
         core_files = {
-            str(p.relative_to(registry_root)): p.read_text()
-            for p in registry_root.glob("*/core.json")
+            str(p.relative_to(registry_root)): p.read_text() for p in registry_root.glob("*/core.json")
         }
         ext_files = {
             str(p.relative_to(registry_root)): p.read_text()
@@ -186,20 +181,12 @@ class HatsRegistry:
             resp.raise_for_status()
             return resp.text
 
-        core_rel_paths, ext_rel_paths = cls._paths_from_index(
-            http, raw_base, subdir
-        )
+        core_rel_paths, ext_rel_paths = cls._paths_from_index(http, raw_base, subdir)
         if core_rel_paths is None:
-            core_rel_paths, ext_rel_paths = cls._paths_from_tree_api(
-                http, owner, repo, ref, subdir
-            )
+            core_rel_paths, ext_rel_paths = cls._paths_from_tree_api(http, owner, repo, ref, subdir)
 
-        core_files = {
-            rel: fetch_raw(f"{subdir}/{rel}") for rel in core_rel_paths
-        }
-        ext_files = {
-            rel: fetch_raw(f"{subdir}/{rel}") for rel in ext_rel_paths
-        }
+        core_files = {rel: fetch_raw(f"{subdir}/{rel}") for rel in core_rel_paths}
+        ext_files = {rel: fetch_raw(f"{subdir}/{rel}") for rel in ext_rel_paths}
 
         return cls._build(core_files, ext_files, validate=validate)
 
@@ -228,10 +215,7 @@ class HatsRegistry:
         unauthenticated) API rate limit — used only when no `_index.json`
         is available.
         """
-        tree_url = (
-            f"https://api.github.com/repos/{owner}/{repo}/git/trees/{ref}"
-            "?recursive=1"
-        )
+        tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{ref}" "?recursive=1"
         response = http.get(tree_url, timeout=30)
         response.raise_for_status()
         tree = response.json()
@@ -248,7 +232,7 @@ class HatsRegistry:
             path = node.get("path", "")
             if node.get("type") != "blob" or not path.startswith(prefix):
                 continue
-            relative = path[len(prefix):]
+            relative = path[len(prefix) :]
             if _CORE_PATH_RE.match(relative):
                 core_rel_paths.append(relative)
             elif _EXTENSION_PATH_RE.match(relative):
@@ -272,9 +256,7 @@ class HatsRegistry:
         for rel_path, text in core_files.items():
             entry = _entry_adapter.validate_json(text)
             if not isinstance(entry, CoreCatalogEntry):
-                raise RegistryValidationError(
-                    f"{rel_path} does not declare catalog_type='core'"
-                )
+                raise RegistryValidationError(f"{rel_path} does not declare catalog_type='core'")
             match = _CORE_PATH_RE.match(rel_path)
             folder_name = match.group("core_id") if match else None
             if validate and entry.catalog_id != folder_name:
@@ -288,15 +270,12 @@ class HatsRegistry:
         for rel_path, text in ext_files.items():
             entry = _entry_adapter.validate_json(text)
             if not isinstance(entry, ExtensionCatalogEntry):
-                raise RegistryValidationError(
-                    f"{rel_path} does not declare catalog_type='extension'"
-                )
+                raise RegistryValidationError(f"{rel_path} does not declare catalog_type='extension'")
             match = _EXTENSION_PATH_RE.match(rel_path)
             expected_id = match.group("ext_id") if match else None
             if validate and entry.catalog_id != expected_id:
                 raise RegistryValidationError(
-                    f"{rel_path}: catalog_id '{entry.catalog_id}' does not "
-                    f"match filename '{expected_id}'"
+                    f"{rel_path}: catalog_id '{entry.catalog_id}' does not " f"match filename '{expected_id}'"
                 )
             if validate and entry.extends not in cores:
                 raise RegistryValidationError(
