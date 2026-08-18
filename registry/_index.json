@@ -1,0 +1,8 @@
+{
+  "cores": [
+    "gaia_dr3/core.json"
+  ],
+  "extensions": [
+    "gaia_dr3/extensions/bailer-jones.json"
+  ]
+}
