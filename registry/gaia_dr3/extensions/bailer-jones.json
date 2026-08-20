@@ -3,6 +3,7 @@
     "path": "https://data.lsdb.io/hats/gaia_edr3_distances",
     "catalog_type": "extension",
     "extends": "gaia_dr3",
-    "modality": "tabular"
+    "modality": "tabular",
+    "coverage": "partial"
   }
   
