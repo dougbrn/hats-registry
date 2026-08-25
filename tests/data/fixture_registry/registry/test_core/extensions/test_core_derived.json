@@ -1,0 +1,10 @@
+{
+  "catalog_id": "test_core_derived",
+  "catalog_type": "extension",
+  "extends": "test_core",
+  "modality": "tabular",
+  "paths": {
+    "primary": "catalogs/primary/test_core_derived",
+    "sdf": "catalogs/sdf/test_core_derived"
+  }
+}

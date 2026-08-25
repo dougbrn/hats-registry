@@ -1,0 +1,8 @@
+{
+  "catalog_id": "test_core",
+  "catalog_type": "core",
+  "paths": {
+    "primary": "catalogs/primary/test_core",
+    "sdf": "catalogs/sdf/test_core"
+  }
+}
