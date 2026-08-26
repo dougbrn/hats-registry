@@ -14,7 +14,7 @@ from typing import Literal, Optional, Union
 from urllib.parse import urlparse
 
 import requests
-from pydantic import BaseModel, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 from typing_extensions import Annotated
 
 __all__ = [
@@ -77,7 +77,17 @@ _EXTENSION_PATH_RE = re.compile(
 
 
 class CatalogEntryBase(BaseModel):
-    """Fields common to every registry entry."""
+    """Fields common to every registry entry.
+
+    `extra="allow"`: an unrecognized field (e.g. a free-text `description`,
+    not yet a formal part of this schema) is kept in `model_extra` rather
+    than silently dropped -- the same forward-compatible pattern used for
+    `hats_registry_id` on the HATS TableProperties side. Lets a field ship
+    informally and get used (e.g. by a display layer) before it's promoted
+    to a typed, schema-validated field.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     catalog_id: str
     paths: dict[str, str]

@@ -1,6 +1,6 @@
 {
     "catalog_id": "bailer-jones",
-    "path": "https://data.lsdb.io/hats/gaia_edr3_distances",
+    "paths": {"primary": "https://data.lsdb.io/hats/gaia_edr3_distances"},
     "catalog_type": "extension",
     "extends": "gaia_dr3",
     "modality": "tabular",

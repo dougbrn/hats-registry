@@ -3,13 +3,24 @@
 Produces:
   - A toy core catalog (via lsdb.generate_catalog), written to two mirror
     locations ("primary" and "sdf" -- arbitrary labels, matching the mirror
-    convention from the registry schema).
+    convention from the registry schema). The core is written WITHOUT its
+    `a` column (see SUBSET_EXT_ID below) even though `a` exists on the
+    in-memory generated catalog -- deliberately, so that `a` is a genuinely
+    new column once the subset extension adds it back, rather than a
+    column that already existed on the core and just gets duplicated.
   - Two toy extension catalogs derived from the core, each also mirrored to
     both locations:
-      * `<core>_subset`   -- a plain column peel-off (ra, dec, id, a).
-      * `<core>_derived`  -- ra, dec, id plus a value computed from the core
+      * `<core>_subset`   -- ra, dec, plus `a` -- the column deliberately
+        left off the written core (see above), demonstrating an extension
+        adding a column the core doesn't have, not just re-supplying one
+        it already does.
+      * `<core>_derived`  -- ra, dec, plus a value computed from the core
         via a simple example function, standing in for a real value-add
         catalog (e.g. photo-z).
+    Neither extension includes an `id` column -- HATS/the registry have no
+    standardized concept of an identifier column (unlike ra/dec), so it's
+    left out entirely rather than exercising a code path that doesn't
+    treat it specially anyway.
   - Matching `registry/<catalog_id>/core.json` and
     `registry/<catalog_id>/extensions/<ext_id>.json` entries, with `paths`
     dicts pointing at the mirrored locations relative to the fixture root.
@@ -34,8 +45,17 @@ from pathlib import Path
 
 import lsdb
 
-# run from root
-OUTPUT_ROOT = Path("tests/data/fixture_registry")
+# Repo root, resolved relative to this script's own location -- not the
+# caller's current working directory. This makes `python
+# scripts/generate_test_fixtures.py` produce the same output regardless of
+# whether it's invoked from the repo root or from inside scripts/.
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
+# Where the generated fixture tree lands, relative to the repo root. Both
+# the catalog data and the registry/ entries describing it are written
+# under here, self-contained, so tests can point HatsRegistry.from_directory
+# and lsdb.open_catalog at subpaths of a single fixture root.
+OUTPUT_ROOT = REPO_ROOT / "tests" / "data" / "fixture_registry"
 
 CORE_ID = "test_core"
 SUBSET_EXT_ID = "test_core_subset"
@@ -43,11 +63,27 @@ DERIVED_EXT_ID = "test_core_derived"
 
 MIRROR_LABELS = ["primary", "sdf"]
 
+# `description` isn't a formal schema field yet (see registry.py --
+# CatalogEntryBase's extra="allow"), so this is exercised deliberately on
+# only one of the two extensions: it lets tests/display code cover both
+# "description present" and "description absent" without a third fixture
+# entry.
+SUBSET_DESCRIPTION = (
+    "A simple extension adding the `a` column (ra, dec, a) -- `a` is "
+    "deliberately not present on the core catalog itself, so this "
+    "demonstrates an extension adding a genuinely new column rather than "
+    "duplicating one the core already has."
+)
+
 
 def _derive_value(core_df):
     """Stand-in for a real derived/value-add computation (e.g. a photo-z
     estimate) -- deliberately trivial since the fixture only needs a
-    distinct, checkable column, not a realistic algorithm.
+    distinct, checkable column, not a realistic algorithm. Operates on the
+    full in-memory core dataframe (including `a`, even though `a` is
+    dropped from the core catalog actually written to disk -- see
+    generate()) since the computation itself is free to use whatever the
+    core had available at generation time.
     """
     return core_df["a"] * 2.0 + core_df["b"]
 
@@ -59,11 +95,17 @@ def generate() -> None:
     registry_root = OUTPUT_ROOT / "registry"
 
     # --- Core catalog ---------------------------------------------------
+    # `a` stays out of what's actually written for the core -- kept only
+    # in-memory (via `core`, below) so the subset extension can add it back
+    # as a genuinely new column. Because of that, extensions are derived
+    # from this in-memory catalog rather than by reopening the written
+    # core from disk (which deliberately no longer has `a`).
     core = lsdb.generate_catalog(n_base=50, n_layer=5, seed=42, catalog_name=CORE_ID)
+    core_without_a = core.drop(columns=["a"])
     core_paths = {}
     for mirror in MIRROR_LABELS:
         out_dir = catalogs_root / mirror / CORE_ID
-        core.write_catalog(
+        core_without_a.write_catalog(
             out_dir,
             catalog_name=CORE_ID,
             overwrite=True,
@@ -73,14 +115,10 @@ def generate() -> None:
         )
         core_paths[mirror] = str(out_dir.relative_to(OUTPUT_ROOT))
 
-    # Re-open from the primary mirror to derive extensions from -- exercises
-    # the same read path a real extension author would use, rather than
-    # reusing the in-memory `core` object directly.
-    core_reopened = lsdb.open_catalog(str(catalogs_root / "primary" / CORE_ID))
-    core_df = core_reopened[["ra", "dec", "id", "a", "b"]].compute()
+    core_df = core[["ra", "dec", "a", "b"]].compute()
 
-    # --- Extension 1: plain column subset --------------------------------
-    subset_df = core_df[["ra", "dec", "id", "a"]]
+    # --- Extension 1: adds `a`, a column the written core doesn't have ---
+    subset_df = core_df[["ra", "dec", "a"]]
     subset_cat = lsdb.from_dataframe(
         subset_df, catalog_name=SUBSET_EXT_ID, ra_column="ra", dec_column="dec"
     )
@@ -98,7 +136,7 @@ def generate() -> None:
         subset_paths[mirror] = str(out_dir.relative_to(OUTPUT_ROOT))
 
     # --- Extension 2: derived value via an example function ---------------
-    derived_df = core_df[["ra", "dec", "id"]].copy()
+    derived_df = core_df[["ra", "dec"]].copy()
     derived_df["derived_value"] = _derive_value(core_df)
     derived_cat = lsdb.from_dataframe(
         derived_df, catalog_name=DERIVED_EXT_ID, ra_column="ra", dec_column="dec"
@@ -137,6 +175,7 @@ def generate() -> None:
                 "extends": CORE_ID,
                 "modality": "tabular",
                 "paths": subset_paths,
+                "description": SUBSET_DESCRIPTION,
             },
             indent=2,
         )
