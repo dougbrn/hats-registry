@@ -69,10 +69,7 @@ MIRROR_LABELS = ["primary", "sdf"]
 # "description present" and "description absent" without a third fixture
 # entry.
 SUBSET_DESCRIPTION = (
-    "A simple extension adding the `a` column (ra, dec, a) -- `a` is "
-    "deliberately not present on the core catalog itself, so this "
-    "demonstrates an extension adding a genuinely new column rather than "
-    "duplicating one the core already has."
+    "A simple extension adding the `a` column (ra, dec, a)"
 )
 
 

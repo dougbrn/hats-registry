@@ -7,5 +7,5 @@
     "primary": "catalogs/primary/test_core_subset",
     "sdf": "catalogs/sdf/test_core_subset"
   },
-  "description": "A simple extension adding the `a` column (ra, dec, a) -- `a` is deliberately not present on the core catalog itself, so this demonstrates an extension adding a genuinely new column rather than duplicating one the core already has."
+  "description": "A simple extension adding the `a` column (ra, dec, a)"
 }
